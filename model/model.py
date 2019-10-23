@@ -12,7 +12,7 @@ import torch.autograd as autograd
 import torch.optim as optim
 import torch.utils.data as tordata
 
-from .network import TripletLoss, SetNet
+from .network import SetNet, CenterLoss
 from .utils import TripletSampler
 
 
@@ -56,19 +56,25 @@ class Model:
 
         self.encoder = SetNet(self.hidden_dim).float()
         self.encoder = nn.DataParallel(self.encoder)
-        self.triplet_loss = TripletLoss(self.P * self.M, self.hard_or_full_trip, self.margin).float()
-        self.triplet_loss = nn.DataParallel(self.triplet_loss)
+        # self.triplet_loss = TripletLoss(self.P * self.M, self.hard_or_full_trip, self.margin).float()
+        # self.triplet_loss = nn.DataParallel(self.triplet_loss)
+
+        # TODO:加入Center Loss
+        self.center_loss = CenterLoss(num_classes=10, feat_dim=3, use_gpu=True)
+        self.center_loss = nn.DataParallel(self.center_loss)
+
         self.encoder.cuda()
-        self.triplet_loss.cuda()
+        # self.triplet_loss.cuda()
+        self.center_loss.cuda()
 
         self.optimizer = optim.Adam([
             {'params': self.encoder.parameters()},
         ], lr=self.lr)
 
-        self.hard_loss_metric = []
-        self.full_loss_metric = []
-        self.full_loss_num = []
-        self.dist_list = []
+        # self.hard_loss_metric = []
+        # self.full_loss_metric = []
+        # self.full_loss_num = []
+        # self.dist_list = []
         self.mean_dist = 0.01
 
         self.sample_type = 'all'
@@ -137,13 +143,12 @@ class Model:
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = self.lr
         triplet_sampler = TripletSampler(self.train_source, self.batch_size)
-
         train_loader = tordata.DataLoader(
             dataset=self.train_source,
             batch_sampler=triplet_sampler,
             collate_fn=self.collate_fn,
             num_workers=self.num_workers,
-            pin_memory=False)
+            pin_memory=True)
 
         train_label_set = list(self.train_source.label_set)
         train_label_set.sort()
@@ -165,23 +170,30 @@ class Model:
 
             triplet_feature = feature.permute(1, 0, 2).contiguous()
             triplet_label = target_label.unsqueeze(0).repeat(triplet_feature.size(0), 1)
-            (full_loss_metric, hard_loss_metric, mean_dist, full_loss_num
-             ) = self.triplet_loss(triplet_feature, triplet_label)
-            if self.hard_or_full_trip == 'hard':
-                loss = hard_loss_metric.mean()
-            elif self.hard_or_full_trip == 'full':
-                loss = full_loss_metric.mean()
 
-            self.hard_loss_metric.append(hard_loss_metric.mean().data.cpu().numpy())
-            self.full_loss_metric.append(full_loss_metric.mean().data.cpu().numpy())
-            self.full_loss_num.append(full_loss_num.mean().data.cpu().numpy())
-            self.dist_list.append(mean_dist.mean().data.cpu().numpy())
+            # (full_loss_metric, hard_loss_metric, mean_dist, full_loss_num
+            #  ) = self.triplet_loss(triplet_feature, triplet_label)
+
+            # if self.hard_or_full_trip == 'hard':
+            #     loss = hard_loss_metric.mean()
+            # elif self.hard_or_full_trip == 'full':
+            #     loss = full_loss_metric.mean()
+            # 可以用loss直接替代
+            # self.hard_loss_metric.append(hard_loss_metric.mean().data.cpu().numpy())
+            # self.full_loss_metric.append(full_loss_metric.mean().data.cpu().numpy())
+            # self.full_loss_num.append(full_loss_num.mean().data.cpu().numpy())
+            # self.dist_list.append(mean_dist.mean().data.cpu().numpy())
+
+            # TODO:加入Center Loss
+            # center_loss = CenterLoss(num_classes=10, feat_dim=3, use_gpu =
+
+            # FIXME:mean()?
+            loss = self.center_loss.mean()
 
             if loss > 1e-9:
                 loss.backward()
                 self.optimizer.step()
 
-            # 每迭代1000次打印一次时间
             if self.restore_iter % 1000 == 0:
                 print(datetime.now() - _time1)
                 _time1 = datetime.now()
@@ -189,18 +201,27 @@ class Model:
             if self.restore_iter % 100 == 0:
                 self.save()
                 print('iter {}:'.format(self.restore_iter), end='')
-                print(', hard_loss_metric={0:.8f}'.format(np.mean(self.hard_loss_metric)), end='')
-                print(', full_loss_metric={0:.8f}'.format(np.mean(self.full_loss_metric)), end='')
-                print(', full_loss_num={0:.8f}'.format(np.mean(self.full_loss_num)), end='')
+
+                # print(', hard_loss_metric={0:.8f}'.format(np.mean(self.hard_loss_metric)), end='')
+                # print(', full_loss_metric={0:.8f}'.format(np.mean(self.full_loss_metric)), end='')
+                # print(', full_loss_num={0:.8f}'.format(np.mean(self.full_loss_num)), end='')
+
                 self.mean_dist = np.mean(self.dist_list)
-                print(', mean_dist={0:.8f}'.format(self.mean_dist), end='')
+
+                # print(', mean_dist=0
+                #
+                # {0:.8f}'.format(self.mean_dist), end='')
+
                 print(', lr=%f' % self.optimizer.param_groups[0]['lr'], end='')
-                print(', hard or full=%r' % self.hard_or_full_trip)
+
+                # print(', hard or full=%r' % self.hard_or_full_trip)
+
                 sys.stdout.flush()
-                self.hard_loss_metric = []
-                self.full_loss_metric = []
-                self.full_loss_num = []
-                self.dist_list = []
+
+                # self.hard_loss_metric = []
+                # self.full_loss_metric = []
+                # self.full_loss_num = []
+                # self.dist_list = []
 
             # Visualization using t-SNE
             # if self.restore_iter % 500 == 0:
@@ -222,29 +243,17 @@ class Model:
         return self.ts2var(torch.from_numpy(x))
 
     def transform(self, flag, batch_size=1):
-
         self.encoder.eval()
-        # source = self.test_source if flag == 'test' else self.train_source
-        source = self.train_source
+        source = self.test_source if flag == 'test' else self.train_source
         self.sample_type = 'all'
-        # print('source：%s' % len(self.train_source))
         data_loader = tordata.DataLoader(
             dataset=source,
             batch_size=batch_size,
             sampler=tordata.sampler.SequentialSampler(source),
             collate_fn=self.collate_fn,
-            num_workers=self.num_workers,)
-
-        # print('source_type: %s' % type(source))
-        # for j in range(0, 10):
-        #     print(data_loader[j])
-        # print('data_loader：%s' % len(data_loader))
-        # print(type(data_loader))
-        # for i, x in enumerate(data_loader):
-        #     print(i)
+            num_workers=self.num_workers)
 
         feature_list = list()
-        # feature_list_0 = list()
         view_list = list()
         seq_type_list = list()
         label_list = list()
@@ -264,12 +273,6 @@ class Model:
             seq_type_list += seq_type
             label_list += label
 
-        # ----------尝试修改的代码----------
-        # if feature_list == feature_list_0:
-        #     return feature_list_0, view_list, seq_type_list, label_list
-        # else:
-        #     return np.concatenate(feature_list, 0), view_list, seq_type_list, label_list
-        # ----------尝试修改的代码----------
         return np.concatenate(feature_list, 0), view_list, seq_type_list, label_list
 
     def save(self):
