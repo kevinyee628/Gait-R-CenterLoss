@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class CenterLoss(nn.Module):
@@ -46,3 +47,9 @@ class CenterLoss(nn.Module):
         loss = dist.clamp(min=1e-12, max=1e+12).sum() / batch_size
 
         return loss
+
+    def batch_dists(self, x, ):
+        x2 = torch.sum(x ** 2, 2)
+        dist = x2.unsqueeze(2) + x2.unsqueeze(2).transpose(1, 2) - 2 * torch.matmul(x, x.transpose(1, 2))
+        dist = torch.sqrt(F.relu(dist))
+        return dist
