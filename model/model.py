@@ -62,11 +62,11 @@ class Model:
 
         # TODO:加入Center Loss
         self.center_loss = CenterLoss(num_classes=10, feat_dim=3, use_gpu=True).float()
-        self.center_loss = nn.DataParallel(self.center_loss)
+        # self.center_loss = nn.DataParallel(self.center_loss)
 
         self.encoder.cuda()
         # self.triplet_loss.cuda()
-        self.center_loss.cuda()
+        # self.center_loss.cuda()
 
         self.optimizer = optim.Adam([
             {'params': self.encoder.parameters()},
@@ -141,9 +141,12 @@ class Model:
 
         self.encoder.train()
         self.sample_type = 'random'
+
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = self.lr
+
         triplet_sampler = TripletSampler(self.train_source, self.batch_size)
+
         train_loader = tordata.DataLoader(
             dataset=self.train_source,
             batch_sampler=triplet_sampler,
@@ -161,16 +164,19 @@ class Model:
 
             for i in range(len(seq)):
                 seq[i] = self.np2var(seq[i]).float()
-            # if batch_frame is not None:
-            #     batch_frame = self.np2var(batch_frame).int()
+            if batch_frame is not None:
+                batch_frame = self.np2var(batch_frame).int()
 
-            # feature, label_prob = self.encoder(*seq, batch_frame)
+            feature, label_prob = self.encoder(*seq, batch_frame)
 
-            # target_label = [train_label_set.index(l) for l in label]
-            # target_label = self.np2var(np.array(target_label)).long()
+            target_label = [train_label_set.index(l) for l in label]
+            target_label = self.np2var(np.array(target_label)).long()
 
             # triplet_feature = feature.permute(1, 0, 2).contiguous()
             # triplet_label = target_label.unsqueeze(0).repeat(triplet_feature.size(0), 1)
+
+            center_feature = feature.permute(1, 0, 2).contiguous()
+            center_label = target_label.unsqueeze(0).repeat(center_feature.size(0), 1)
 
             # (full_loss_metric, hard_loss_metric, mean_dist, full_loss_num
             #  ) = self.triplet_loss(triplet_feature, triplet_label)
@@ -186,10 +192,7 @@ class Model:
             # self.dist_list.append(mean_dist.mean().data.cpu().numpy())
 
             # TODO:加入Center Loss
-            # center_loss = CenterLoss(num_classes=10, feat_dim=3, use_gpu =
-
-            # FIXME:mean()?
-            loss = self.center_loss.mean()
+            loss = self.center_loss(center_feature, center_label)
             if loss > 1e-9:
                 loss.backward()
                 self.optimizer.step()
