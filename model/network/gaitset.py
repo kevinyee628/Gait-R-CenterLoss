@@ -80,8 +80,10 @@ class SetNet(nn.Module):
                     _ -= 1
             batch_frame = batch_frame[:_]
             frame_sum = np.sum(batch_frame)
+
             if frame_sum < silho.size(1):
                 silho = silho[:, :frame_sum, :, :]
+
             self.batch_frame = [0] + np.cumsum(batch_frame).tolist()
         n = silho.size(0)
         x = silho.unsqueeze(2)
@@ -104,14 +106,18 @@ class SetNet(nn.Module):
         gl = gl + x
 
         feature = list()
+        # TODO:需要修改feature为2D
+        # TODO：n, c, h, w如何传入
         n, c, h, w = gl.size()
         for num_bin in self.bin_num:
             z = x.view(n, c, num_bin, -1)
             z = z.mean(3) + z.max(3)[0]
+            # print(z)
             feature.append(z)
             z = gl.view(n, c, num_bin, -1)
             z = z.mean(3) + z.max(3)[0]
             feature.append(z)
+            print(feature)
         feature = torch.cat(feature, 2).permute(2, 0, 1).contiguous()
 
         feature = feature.matmul(self.fc_bin[0])
