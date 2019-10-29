@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "train.py", line 21, in <module>
+    m.fit()
+  File "/home/ncusc/DL/Gait-R-CenterLoss/model/model.py", line 197, in fit
+    loss = self.center_loss(center_feature, center_label)
+  File "/home/ncusc/anaconda3/lib/python3.7/site-packages/torch/nn/modules/module.py", line 477, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/home/ncusc/DL/Gait-R-CenterLoss/model/network/center_loss.py", line 48, in forward
+    distmat.addmm_(1, -2, x, self.centers.t())
+RuntimeError: matrices expected, got 3D, 2D tensors at /opt/conda/conda-bld/pytorch_1535493744281/work/aten/src/THC/generic/THCTensorMathBlas.cu:241
