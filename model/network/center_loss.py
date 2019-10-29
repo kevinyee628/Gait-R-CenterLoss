@@ -40,7 +40,7 @@ class CenterLoss(nn.Module):
         hn_mask = (labels.unsqueeze(1) != labels.unsqueeze(2)).byte().view(-1)
 
         batch_size = x.size(0)
-        dist = self.basenet(x)
+        dist = self.batch_dists(x)
         mean = dist.mean(1).mean(1)
         dist = dist.view(-1)
 
