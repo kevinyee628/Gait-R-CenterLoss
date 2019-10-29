@@ -61,7 +61,7 @@ class Model:
         # self.triplet_loss = nn.DataParallel(self.triplet_loss)
 
         # TODO:加入Center Loss
-        self.center_loss = CenterLoss(num_classes=10, feat_dim=3, use_gpu=True, self.margin).float()
+        self.center_loss = CenterLoss(self.margin, num_classes=10, feat_dim=3, use_gpu=True).float()
         # self.center_loss = nn.DataParallel(self.center_loss)
 
         self.encoder.cuda()
