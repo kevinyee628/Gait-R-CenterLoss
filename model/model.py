@@ -12,7 +12,6 @@ import torch.autograd as autograd
 import torch.optim as optim
 import torch.utils.data as tordata
 
-from center_loss import CenterLoss
 from .network import TripletLoss, SetNet, CenterLoss
 from .utils import TripletSampler
 
