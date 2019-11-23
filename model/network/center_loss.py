@@ -15,7 +15,7 @@ class CenterLoss(nn.Module):
     """
 
     # feat_dim = 3
-    def __init__(self, margin, num_classes=10, feat_dim=3, use_gpu=True):
+    def __init__(self, margin, num_classes, feat_dim, use_gpu=True):
         super(CenterLoss, self).__init__()
         self.num_classes = num_classes
         self.feat_dim = feat_dim
@@ -35,37 +35,62 @@ class CenterLoss(nn.Module):
             labels: ground truth labels with shape (batch_size).
         """
 
+        # print(labels.size(0))
+        # print(labels.size(1))
+        # print(labels.size(-1))
+        # print(labels.size(-2))
+
         n, m, d = x.size()
+        # print(x.size())
+        # print(labels.size())
+        # print(n)
+        # print(m)
+        # print(d)
         hp_mask = (labels.unsqueeze(1) == labels.unsqueeze(2)).byte().view(-1)
         hn_mask = (labels.unsqueeze(1) != labels.unsqueeze(2)).byte().view(-1)
 
         batch_size = x.size(0)
         dist = self.batch_dists(x)
-        mean = dist.mean(1).mean(1)
+        dist_mean = dist.mean(1).mean(1)
         dist = dist.view(-1)
 
         # TODO:降低feature维度
         full_hp_dist = torch.masked_select(dist, hp_mask).view(n, m, -1, 1)
         full_hn_dist = torch.masked_select(dist, hn_mask).view(n, m, 1, -1)
 
-        distmat = torch.pow(full_hp_dist, 2).sum(dim=1, keepdim=True).expand(batch_size, self.num_classes) + \
+        # TODO:降为1D
+        full_loss_metric = F.relu(self.margin + full_hp_dist).view(n, -1)
+
+        distmat = torch.pow(full_loss_metric, 2).sum(dim=1, keepdim=True).expand(batch_size, self.num_classes) + \
                   torch.pow(self.centers, 2).sum(dim=1, keepdim=True).expand(self.num_classes, batch_size).t()
 
-        distmat.addmm_(1, -2, full_hp_dist, self.centers.t())
+        # print(self.centers.t())
+        distmat.addmm_(1, -2, full_loss_metric, self.centers.t())
 
         classes = torch.arange(self.num_classes).long()
         if self.use_gpu:
             classes = classes.cuda()
-        labels = labels.unsqueeze(1).expand(batch_size, self.num_classes)
+
+        # print(classes.size())
+        # labels = labels.unsqueeze(1).expand(batch_size, self.num_classes)
+
+        # FIXME:RuntimeError: The expanded size of the tensor (62) must match the existing size (32) at non-singleton dimension 1
+
+        # print(labels.size(1))
+        # print(batch_size)
+        # labels = labels.squeeze(0)
+        # print(labels.size())
+
+        labels = labels.expand(batch_size, self.num_classes)
+
         mask = labels.eq(classes.expand(batch_size, self.num_classes))
 
         dist = distmat * mask.float()
-        # TODO:降为1D
-        # full_loss_metric = F.relu(self.margin + dist).view(n, -1)
+        # dist = distmat * labels.float()
 
         loss = dist.clamp(min=1e-12, max=1e+12).sum() / batch_size
 
-        return loss
+        return loss, dist_mean
 
     def batch_dists(self, x, ):
         x2 = torch.sum(x ** 2, 2)
