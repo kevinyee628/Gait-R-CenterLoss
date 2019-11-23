@@ -24,7 +24,7 @@ def load_data(dataset_path, resolution, dataset, pid_num, pid_shuffle, cache=Tru
             # for2 状态序号  bg，cl,nm
             seq_type_path = osp.join(label_path, _seq_type)
             for _view in sorted(list(os.listdir(seq_type_path))):
-                # 角度序号
+                # for3 角度序号
                 _seq_dir = osp.join(seq_type_path, _view)
                 seqs = os.listdir(_seq_dir)
                 if len(seqs) > 0:
