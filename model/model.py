@@ -161,7 +161,7 @@ class Model:
             self.restore_iter += 1
             self.optimizer.zero_grad()
 
-            print(type(label))
+            # print(type(label))
 
             for i in range(len(seq)):
                 seq[i] = self.np2var(seq[i]).float()
@@ -171,18 +171,18 @@ class Model:
             feature, label_prob = self.encoder(*seq, batch_frame)
 
             target_label = [train_label_set.index(l) for l in label]
-            print(type(target_label))
+            # print(type(target_label))
             target_label = self.np2var(np.array(target_label)).long()
-            print(type(target_label))
+            # print(type(target_label))
             # print(label.size)
             # triplet_feature = feature.permute(1, 0, 2).contiguous()
             # triplet_label = target_label.unsqueeze(0).repeat(triplet_feature.size(0), 1)
 
             center_feature = feature.permute(1, 0, 2).contiguous()
-            print(center_feature.size())
-            print(target_label.size())
+            # print(center_feature.size())
+            # print(target_label.size())
             center_label = target_label.unsqueeze(0).repeat(center_feature.size(0), 1)
-            print(center_label.size())
+            # print(center_label.size())
 
             # (full_loss_metric, hard_loss_metric, mean_dist, full_loss_num
             #  ) = self.triplet_loss(triplet_feature, triplet_label)
