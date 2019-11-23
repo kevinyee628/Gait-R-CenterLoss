@@ -77,7 +77,7 @@ class CenterLoss(nn.Module):
         # FIXME:RuntimeError: The expanded size of the tensor (62) must match the existing size (32) at non-singleton dimension 1
 
         # print(labels.size(1))
-        # print(batch_size)
+        # print(batch_size)batch_size
         # labels = labels.squeeze(0)
         # print(labels.size())
 

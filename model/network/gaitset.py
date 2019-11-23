@@ -117,10 +117,10 @@ class SetNet(nn.Module):
             z = gl.view(n, c, num_bin, -1)
             z = z.mean(3) + z.max(3)[0]
             feature.append(z)
-            print(feature)
+            print('feature0 %d' % len(feature)) # 2 4 6 8 10
         feature = torch.cat(feature, 2).permute(2, 0, 1).contiguous()
-
+        print('feature1 %d' % len(feature)) # 62
         feature = feature.matmul(self.fc_bin[0])
         feature = feature.permute(1, 0, 2).contiguous()
-
+        print('feature2 %d' % len(feature)) # 32
         return feature, None

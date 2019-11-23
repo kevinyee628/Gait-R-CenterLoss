@@ -12,15 +12,19 @@ def load_data(dataset_path, resolution, dataset, pid_num, pid_shuffle, cache=Tru
     seq_type = list()
     label = list()
 
+    # 存储文件路径，并分好类别
     for _label in sorted(list(os.listdir(dataset_path))):
+        # for1 人物序号
         # In CASIA-B, data of subject #5 is incomplete.
         # Thus, we ignore it in training.
         if dataset == 'CASIA-B' and _label == '005':
             continue
         label_path = osp.join(dataset_path, _label)
         for _seq_type in sorted(list(os.listdir(label_path))):
+            # for2 状态序号  bg，cl,nm
             seq_type_path = osp.join(label_path, _seq_type)
             for _view in sorted(list(os.listdir(seq_type_path))):
+                # 角度序号
                 _seq_dir = osp.join(seq_type_path, _view)
                 seqs = os.listdir(_seq_dir)
                 if len(seqs) > 0:
@@ -28,7 +32,7 @@ def load_data(dataset_path, resolution, dataset, pid_num, pid_shuffle, cache=Tru
                     label.append(_label)
                     seq_type.append(_seq_type)
                     view.append(_view)
-	
+    # pid_fname 数据基本信息
     pid_fname = osp.join('partition', '{}_{}_{}.npy'.format(
         dataset, pid_num, pid_shuffle))
     if not osp.exists(pid_fname):

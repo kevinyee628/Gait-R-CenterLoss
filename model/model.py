@@ -169,8 +169,10 @@ class Model:
                 batch_frame = self.np2var(batch_frame).int()
 
             feature, label_prob = self.encoder(*seq, batch_frame)
+            print('feature_encoded %d' % len(feature))  # 62
 
             target_label = [train_label_set.index(l) for l in label]
+
             # print(type(target_label))
             target_label = self.np2var(np.array(target_label)).long()
             # print(type(target_label))
